@@ -146,13 +146,14 @@ root.title("Application de Masques")
 
 # Créer un widget Label pour afficher l'image
 panel = tk.Label(root)
-panel.pack(padx=10, pady=10)
+panel.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
 
 # Interface utilisateur Tkinter
-button_open_mask = tk.Button(root, text="Pere noel", command=filtreGlassesActive)
-button_open_mask.pack(pady=10)
-button_open_mask = tk.Button(root, text="Filtre", command=filtreSepiaActive)
-button_open_mask.pack(pady=10)
+button_open_mask1 = tk.Button(root, text="Pere noel", command=filtreGlassesActive)
+button_open_mask1.grid(row=1, column=0)
+
+button_open_mask2 = tk.Button(root, text="Filtre", command=filtreSepiaActive)
+button_open_mask2.grid(row=1, column=1)
 
 # Mettre à jour l'affichage vidéo
 update_video()
