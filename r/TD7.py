@@ -9,7 +9,8 @@ face_cascade = cv2.CascadeClassifier('./haarcascades/haarcascade_frontalface_alt
 eye_cascade = cv2.CascadeClassifier('./haarcascades/haarcascade_eye_tree_eyeglasses.xml')
 
 glasses = cv2.imread('./images/sunglasses.png', cv2.IMREAD_UNCHANGED)
-
+img_chapeau = cv2.imread('./images/chapeau.png', cv2.IMREAD_UNCHANGED)
+img_barbe = cv2.imread('./images/barbe.png', cv2.IMREAD_UNCHANGED)
 frame = None
 filtreGlassesActiveB = False
 
@@ -20,10 +21,8 @@ def filtreGlassesActive():
 def filtreGlasses(face_cascade,eye_cascade,frame,glasses):
     # Convert into grayscale
     grayMultiple = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
     # Detect faces
     facesMultiple = face_cascade.detectMultiScale(grayMultiple, 1.1, 4)
-
     if np.size(facesMultiple)>0:
         #Couper la video et recuperer la partie du visage
         for (x,y,w,h) in facesMultiple:
@@ -52,15 +51,59 @@ def filtreGlasses(face_cascade,eye_cascade,frame,glasses):
         frame[y:y + h, x:x + w] = frameEyes
     return frame
 
+def chapeau(face_cascade,frame,img_chapeau,img_barbe) :
+    
+    
+    # Convert into grayscale
+    grayMultiple = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+    # Detect faces
+    facesMultiple = face_cascade.detectMultiScale(grayMultiple, 1.1, 4)
+
+    if np.size(facesMultiple)>0:
+        #Couper la video et recuperer la partie du visage
+        for (x,y,w,h) in facesMultiple:
+            w2=w
+            h2=h
+            hx1=x 
+            hx2=hx1+w2
+            hy1=y
+            hy2=hy1+h2
+                        
+            img_chapeau_resized = cv2.resize(img_chapeau, (hx2-hx1,hy2-hy1))
+            img_barbe_resized = cv2.resize(img_barbe, (hx2-hx1,hy2-hy1))
+            
+            chapeau_height, chapeau_width = img_chapeau_resized.shape[:2]
+            barbe_height, barbe_width = img_barbe_resized.shape[:2]
+            
+            # Adjust y coordinate for the hat
+            hy1_chapeau = hy1 - chapeau_height + 60
+            
+            # Adjust y coordinate for the hat
+            hy1_barbe = hy1 + h - barbe_height + 100
+            
+            if hy1_chapeau >= 0:  # Ensure the hat is within the frame
+                alpha_channel = img_chapeau_resized[:, :, 3] / 255.0
+                alpha_channel = np.expand_dims(alpha_channel, axis=2)
+                result = alpha_channel * img_chapeau_resized[:, :, :3] + (1.0 - alpha_channel) * frame[hy1_chapeau:hy1_chapeau+chapeau_height, hx1:hx1+chapeau_width]
+                frame[hy1_chapeau:hy1_chapeau+chapeau_height, hx1:hx1+chapeau_width] = result.astype(np.uint8)
+            
+            if hy1_barbe >= 0:  # Ensure the hat is within the frame
+                alpha_channel = img_barbe_resized[:, :, 3] / 255.0
+                alpha_channel = np.expand_dims(alpha_channel, axis=2)
+                result = alpha_channel * img_barbe_resized[:, :, :3] + (1.0 - alpha_channel) * frame[hy1_barbe:hy1_barbe + barbe_height, hx1:hx1 + barbe_width]
+                frame[hy1_barbe:hy1_barbe+barbe_height, hx1:hx1+barbe_width] = result.astype(np.uint8)
+    
 # Fonction pour mettre à jour l'affichage vidéo
 def update_video():
     global panel,frame,filtreGlassesActiveB
     ret, frame = cap.read()
     if ret:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # if filtreGlassesActiveB:
+        #     filtreGlasses(face_cascade,eye_cascade,frame,glasses)
         if filtreGlassesActiveB:
-            filtreGlasses(face_cascade,eye_cascade,frame,glasses)
+            chapeau(face_cascade,frame,img_chapeau,img_barbe)
         # frame = apply_masks(frame)
 
         # Convertir l'image en format PhotoImage
