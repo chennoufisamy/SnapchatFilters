@@ -7,7 +7,7 @@ from PIL import Image, ImageTk
 
 face_cascade = cv2.CascadeClassifier('./haarcascades/haarcascade_frontalface_alt.xml')
 eye_cascade = cv2.CascadeClassifier('./haarcascades/haarcascade_eye_tree_eyeglasses.xml')
-
+q
 glasses = cv2.imread('./images/sunglasses.png', cv2.IMREAD_UNCHANGED)
 img_chapeau = cv2.imread('./images/chapeau.png', cv2.IMREAD_UNCHANGED)
 img_barbe = cv2.imread('./images/barbe.png', cv2.IMREAD_UNCHANGED)
