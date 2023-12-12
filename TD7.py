@@ -4,20 +4,32 @@ import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 
+def apply_sepia(frame):
+    # Conversion en sépia
+    sepia_filter = np.array([[0.393, 0.769, 0.189],
+                             [0.349, 0.686, 0.168],
+                             [0.272, 0.534, 0.131]])
 
-face_cascade = cv2.CascadeClassifier('C:/Users/samyc/OneDrive/Bureau/scuola/M1/TraitementImages/TD/TD7/SnapchatFilters/r/haarcascades/haarcascade_frontalface_alt.xml')
-eye_cascade = cv2.CascadeClassifier('C:/Users/samyc/OneDrive/Bureau/scuola/M1/TraitementImages/TD/TD7/SnapchatFilters/r/haarcascades/haarcascade_eye_tree_eyeglasses.xml')
+    sepia_frame = cv2.transform(frame[0:frame.shape[0],0:frame.shape[1]], sepia_filter)
 
-glasses = cv2.imread('C:/Users/samyc/OneDrive/Bureau/scuola/M1/TraitementImages/TD/TD7/SnapchatFilters/r/images/barbe.png', cv2.IMREAD_UNCHANGED)
-img_chapeau = cv2.imread('C:/Users/samyc/OneDrive/Bureau/scuola/M1/TraitementImages/TD/TD7/SnapchatFilters/r/images/chapeau.png', cv2.IMREAD_UNCHANGED)
-img_barbe = cv2.imread('C:/Users/samyc/OneDrive/Bureau/scuola/M1/TraitementImages/TD/TD7/SnapchatFilters/r/images/barbe.png', cv2.IMREAD_UNCHANGED)
+    frame[0:frame.shape[0],0:frame.shape[1]] = sepia_frame
+
+face_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_frontalface_alt.xml')
+eye_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_eye_tree_eyeglasses.xml')
+
+#glasses = cv2.imread('images/s.png', cv2.IMREAD_UNCHANGED)
+img_chapeau = cv2.imread('images/chapeau.png', cv2.IMREAD_UNCHANGED)
+img_barbe = cv2.imread('images/barbe.png', cv2.IMREAD_UNCHANGED)
 frame = None
 filtreGlassesActiveB = False
+filtreSepiaActiveB = False
 
 def filtreGlassesActive():
     global filtreGlassesActiveB
     filtreGlassesActiveB = not filtreGlassesActiveB
-    
+def filtreSepiaActive():
+    global filtreSepiaActiveB
+    filtreSepiaActiveB = not filtreSepiaActiveB
 def filtreGlasses(face_cascade,eye_cascade,frame,glasses):
     # Convert into grayscale
     grayMultiple = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -96,7 +108,7 @@ def chapeau(face_cascade,frame,img_chapeau,img_barbe) :
     
 # Fonction pour mettre à jour l'affichage vidéo
 def update_video():
-    global panel,frame,filtreGlassesActiveB
+    global panel,frame,filtreGlassesActiveB,filtreSepiaActiveB
     ret, frame = cap.read()
     if ret:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -105,6 +117,11 @@ def update_video():
         if filtreGlassesActiveB:
             chapeau(face_cascade,frame,img_chapeau,img_barbe)
         # frame = apply_masks(frame)
+
+        # Appliquer le filtre (sépia dans cet exemple)
+        if filtreSepiaActiveB:
+            apply_sepia(frame)
+    
 
         # Convertir l'image en format PhotoImage
         img = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -132,7 +149,9 @@ panel = tk.Label(root)
 panel.pack(padx=10, pady=10)
 
 # Interface utilisateur Tkinter
-button_open_mask = tk.Button(root, text="Sélectionner un masque", command=filtreGlassesActive)
+button_open_mask = tk.Button(root, text="Pere noel", command=filtreGlassesActive)
+button_open_mask.pack(pady=10)
+button_open_mask = tk.Button(root, text="Filtre", command=filtreSepiaActive)
 button_open_mask.pack(pady=10)
 
 # Mettre à jour l'affichage vidéo
