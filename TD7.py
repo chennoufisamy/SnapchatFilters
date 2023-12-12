@@ -3,8 +3,98 @@ import numpy as np
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
+import random
 
-def apply_sepia(frame):
+face_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_frontalface_alt.xml')
+eye_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_eye_tree_eyeglasses.xml')
+body_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_upperbody.xml')
+
+#glasses = cv2.imread('images/s.png', cv2.IMREAD_UNCHANGED)
+img_chapeau = cv2.imread('images/chapeau.png', cv2.IMREAD_UNCHANGED)
+img_barbe = cv2.imread('images/barbe.png', cv2.IMREAD_UNCHANGED)
+img_coeur = cv2.imread('images/coeur.png', cv2.IMREAD_UNCHANGED)
+
+frame = None
+filtreGlassesActiveB = False
+filtreSepiaActiveB = False
+filtreCoeursActiveB = False
+
+def filtreGlassesActive():
+    global filtreGlassesActiveB
+    filtreGlassesActiveB = not filtreGlassesActiveB
+    
+def filtreSepiaActive():
+    global filtreSepiaActiveB
+    filtreSepiaActiveB = not filtreSepiaActiveB
+    
+def filtreCoeursActive():
+    global filtreCoeursActiveB
+    filtreCoeursActiveB = not filtreCoeursActiveB
+    
+
+def pereNoel(face_cascade,frame,img_chapeau,img_barbe) :
+    
+    # Convertir l'image en niveaux de gris pour la détection du corps
+    grayMultiple = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Detection du visage
+    facesMultiple = face_cascade.detectMultiScale(grayMultiple, 1.1, 4)
+
+    if np.size(facesMultiple)>0:
+        #Couper la video et recuperer la partie du visage
+        for (x,y,w,h) in facesMultiple:
+            
+            # Coordonnées
+            w2=w
+            h2=h
+            hx1=x 
+            hx2=hx1+w2
+            hy1=y
+            hy2=hy1+h2
+            
+            # Redimensionner les images        
+            img_chapeau_resized = cv2.resize(img_chapeau, (hx2-hx1,hy2-hy1))
+            img_barbe_resized = cv2.resize(img_barbe, (hx2-hx1,hy2-hy1))
+            
+            # Récupérer les dimensions du cadre
+            chapeau_height, chapeau_width = img_chapeau_resized.shape[:2]
+            barbe_height, barbe_width = img_barbe_resized.shape[:2]
+            
+            # Adjuster les coordonnées pour le chapeau
+            hy1_chapeau = hy1 - chapeau_height + 60
+            
+            # Adjuster les coordonnées pour la barbe
+            hy1_barbe = hy1 + h - barbe_height + 100
+            
+            if hy1_chapeau >= 0:  # Assurer que le chapeau est dans le cadre
+                
+                # Recuperer le canal alpha
+                alpha_channel = img_chapeau_resized[:, :, 3] / 255.0
+                
+                # Ajouter une dimension
+                alpha_channel = np.expand_dims(alpha_channel, axis=2)
+                
+                # Calculer le resultat
+                result = alpha_channel * img_chapeau_resized[:, :, :3] + (1.0 - alpha_channel) * frame[hy1_chapeau:hy1_chapeau+chapeau_height, hx1:hx1+chapeau_width]
+                
+                # Mettre à jour le cadre
+                frame[hy1_chapeau:hy1_chapeau+chapeau_height, hx1:hx1+chapeau_width] = result.astype(np.uint8)
+            
+            if hy1_barbe >= 0:  # Assurer que la barbe est dans le cadre
+                
+                # Recuperer le canal alpha
+                alpha_channel = img_barbe_resized[:, :, 3] / 255.0
+                
+                # Ajouter une dimension
+                alpha_channel = np.expand_dims(alpha_channel, axis=2)
+                
+                # Calculer le resultat
+                result = alpha_channel * img_barbe_resized[:, :, :3] + (1.0 - alpha_channel) * frame[hy1_barbe:hy1_barbe + barbe_height, hx1:hx1 + barbe_width]
+                
+                # Mettre à jour le cadre
+                frame[hy1_barbe:hy1_barbe+barbe_height, hx1:hx1+barbe_width] = result.astype(np.uint8)
+
+def sepia(frame):
     # Conversion en sépia
     sepia_filter = np.array([[0.393, 0.769, 0.189],
                              [0.349, 0.686, 0.168],
@@ -14,116 +104,92 @@ def apply_sepia(frame):
 
     frame[0:frame.shape[0],0:frame.shape[1]] = sepia_frame
 
-face_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_frontalface_alt.xml')
-eye_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_eye_tree_eyeglasses.xml')
 
-#glasses = cv2.imread('images/s.png', cv2.IMREAD_UNCHANGED)
-img_chapeau = cv2.imread('images/chapeau.png', cv2.IMREAD_UNCHANGED)
-img_barbe = cv2.imread('images/barbe.png', cv2.IMREAD_UNCHANGED)
-frame = None
-filtreGlassesActiveB = False
-filtreSepiaActiveB = False
+#Initialisation image des coeurs et leur position initiale pour les appliquer au fond
+coeurs = [(0, i * 60) for i in range(10)]
+coeur_y = 0
 
-def filtreGlassesActive():
-    global filtreGlassesActiveB
-    filtreGlassesActiveB = not filtreGlassesActiveB
-def filtreSepiaActive():
-    global filtreSepiaActiveB
-    filtreSepiaActiveB = not filtreSepiaActiveB
-def filtreGlasses(face_cascade,eye_cascade,frame,glasses):
-    # Convert into grayscale
+def fondCoeurs(body_cascade,frame,coeur):
+    
     grayMultiple = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    # Detect faces
-    facesMultiple = face_cascade.detectMultiScale(grayMultiple, 1.1, 4)
-    if np.size(facesMultiple)>0:
-        #Couper la video et recuperer la partie du visage
-        for (x,y,w,h) in facesMultiple:
-            frameEyes = frame[y:y+h, x:x+w]
-            
-            grayEyes =cv2.cvtColor(frameEyes,cv2.COLOR_BGR2GRAY)
-            eyesMultiple = eye_cascade.detectMultiScale(grayEyes, 1.1, 4)
-            if len(eyesMultiple) >= 2:
-            # Sort the detected eyes by x-coordinate
-                eyesMultiple = sorted(eyesMultiple, key=lambda x: x[0])
-                # Get the leftmost and rightmost points
-                x1 = eyesMultiple[0][0]
-                x2 = eyesMultiple[1][0] + eyesMultiple[1][2]
-                # Get the topmost and bottommost points
-                y1 = min(eyesMultiple[0][1], eyesMultiple[1][1])
-                y2 = max(eyesMultiple[0][1] + eyesMultiple[0][3], eyesMultiple[1][1] + eyesMultiple[1][3])
-                # Calculate the width and height of the glasses
-                w_glasses = x2 - x1
-                h_glasses = y2 - y1
-                # Resize the glasses and place them on the face
-                glasses_resized = cv2.resize(glasses, (w_glasses, h_glasses))
-                alpha_channel = glasses_resized[:, :, 3] / 255.0
-                alpha_channel = np.expand_dims(alpha_channel, axis=2)
-                result = alpha_channel * glasses_resized[:, :, :3] + (1.0 - alpha_channel) * frameEyes[y1:y2, x1:x2]
-                frameEyes[y1:y2, x1:x2] = result.astype(np.uint8)
-        frame[y:y + h, x:x + w] = frameEyes
-    return frame
+    bodyDetection = body_cascade.detectMultiScale(grayMultiple, 1.1, 4)
 
-def chapeau(face_cascade,frame,img_chapeau,img_barbe) :
+    # Récupérer les dimensions du cadre
+    height, width, _ = frame.shape
+    coeur = cv2.resize(coeur, (90, 103))
     
-    
-    # Convert into grayscale
-    grayMultiple = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Initialize the overlay
+    overlay = np.zeros_like(frame)
 
-    # Detect faces
-    facesMultiple = face_cascade.detectMultiScale(grayMultiple, 1.1, 4)
+    # Initialize an empty mask
+    bodyMask = np.zeros_like(grayMultiple, dtype=bool)
 
-    if np.size(facesMultiple)>0:
-        #Couper la video et recuperer la partie du visage
-        for (x,y,w,h) in facesMultiple:
-            w2=w
-            h2=h
-            hx1=x 
-            hx2=hx1+w2
-            hy1=y
-            hy2=hy1+h2
-                        
-            img_chapeau_resized = cv2.resize(img_chapeau, (hx2-hx1,hy2-hy1))
-            img_barbe_resized = cv2.resize(img_barbe, (hx2-hx1,hy2-hy1))
-            
-            chapeau_height, chapeau_width = img_chapeau_resized.shape[:2]
-            barbe_height, barbe_width = img_barbe_resized.shape[:2]
-            
-            # Adjust y coordinate for the hat
-            hy1_chapeau = hy1 - chapeau_height + 60
-            
-            # Adjust y coordinate for the hat
-            hy1_barbe = hy1 + h - barbe_height + 100
-            
-            if hy1_chapeau >= 0:  # Ensure the hat is within the frame
-                alpha_channel = img_chapeau_resized[:, :, 3] / 255.0
-                alpha_channel = np.expand_dims(alpha_channel, axis=2)
-                result = alpha_channel * img_chapeau_resized[:, :, :3] + (1.0 - alpha_channel) * frame[hy1_chapeau:hy1_chapeau+chapeau_height, hx1:hx1+chapeau_width]
-                frame[hy1_chapeau:hy1_chapeau+chapeau_height, hx1:hx1+chapeau_width] = result.astype(np.uint8)
-            
-            if hy1_barbe >= 0:  # Ensure the hat is within the frame
-                alpha_channel = img_barbe_resized[:, :, 3] / 255.0
-                alpha_channel = np.expand_dims(alpha_channel, axis=2)
-                result = alpha_channel * img_barbe_resized[:, :, :3] + (1.0 - alpha_channel) * frame[hy1_barbe:hy1_barbe + barbe_height, hx1:hx1 + barbe_width]
-                frame[hy1_barbe:hy1_barbe+barbe_height, hx1:hx1+barbe_width] = result.astype(np.uint8)
+    # Fill in the rectangles
+    for (x, y, w, h) in bodyDetection:
+        
+        # Define the percentage by which you want to reduce the size of the rectangle
+        reduction_percentage = 0.2  # 20% reduction
+
+        # Calculate the amount by which to reduce the dimensions of the rectangle
+        w_reduction = int(w * reduction_percentage)
+        h_reduction = int(h * reduction_percentage)
+
+        # Adjust the dimensions of the rectangle
+        bodyMask[y+h_reduction:y+h-h_reduction, x+w_reduction:x+w-w_reduction] = True  
+
+    # Superposer les flocons de neige sur l'image du cadre de la webcam
+    # Vous pouvez personnaliser la logique pour les faire bouger
+    # Ici, nous utilisons une simple translation vers le bas
+    for i, (coeur_y, snow_x) in enumerate(coeurs):
+        coeur_y = (coeur_y + random.randint(1, 5)) % height
+        coeurs[i] = (coeur_y, snow_x)
+        snowflake_rgb = coeur[:, :, :3]
+
+        # Create a mask where True represents the pixels of the coeur that are on the body
+        snowflake_mask = bodyMask[coeur_y:coeur_y+snowflake_rgb.shape[0], snow_x:snow_x+snowflake_rgb.shape[1]]
+
+        # Ensure that snowflake_mask and snowflake_rgb have the same size
+        snowflake_mask = snowflake_mask[:snowflake_rgb.shape[0], :snowflake_rgb.shape[1]]
+
+        # Use the mask to avoid drawing the coeur on the body
+        overlay[coeur_y:coeur_y+snowflake_rgb.shape[0], snow_x:snow_x+snowflake_rgb.shape[1]][~snowflake_mask] = snowflake_rgb[~snowflake_mask]
+
+    # Mélanger l'image du cadre avec les flocons de neige en arrière-plan
+    result = cv2.addWeighted(frame, 1, overlay, 1, 0)
     
+    # Mettre à jour le cadre
+    frame[0:frame.shape[0],0:frame.shape[1]] = result
+    
+
 # Fonction pour mettre à jour l'affichage vidéo
 def update_video():
-    global panel,frame,filtreGlassesActiveB,filtreSepiaActiveB
+    
+    global panel,frame,filtreGlassesActiveB,filtreSepiaActiveB,filtreCoeursActiveB
+    
+    # Lire le flux vidéo de la webcam
     ret, frame = cap.read()
+    
     if ret:
+        
+        # Convertir l'image de la webcam en format RGB
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        # if filtreGlassesActiveB:
-        #     filtreGlasses(face_cascade,eye_cascade,frame,glasses)
-        if filtreGlassesActiveB:
-            chapeau(face_cascade,frame,img_chapeau,img_barbe)
-        # frame = apply_masks(frame)
 
-        # Appliquer le filtre (sépia dans cet exemple)
+        # Appliquer le filtre seulement si l'utilisateur clic sur le bouton
+        
+        # Filtre pere noel
+        if filtreGlassesActiveB:
+            pereNoel(face_cascade,frame,img_chapeau,img_barbe)
+
+        # Filtre sepia
         if filtreSepiaActiveB:
-            apply_sepia(frame)
+            sepia(frame)
+        
+        # Filtre coeurs
+        if filtreCoeursActiveB:
+            fondCoeurs(body_cascade,frame,img_coeur)
     
 
-        # Convertir l'image en format PhotoImage
+        # Convertir l'image en format PhotoImage pour pouvoir la mettre à jour dans le widget Label
         img = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         img = cv2.resize(img, (640, 480))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -134,8 +200,9 @@ def update_video():
         panel.img = img
         panel.config(image=img)
 
+    # Mettre à jour l'affichage vidéo après 10 ms
     root.after(10, update_video)
-
+    
 # Initialiser la webcam
 cap = cv2.VideoCapture(0)
 
@@ -154,6 +221,9 @@ button_open_mask1.grid(row=1, column=0)
 
 button_open_mask2 = tk.Button(root, text="Filtre", command=filtreSepiaActive)
 button_open_mask2.grid(row=1, column=1)
+
+button_open_mask2 = tk.Button(root, text="Fond coeurs", command=filtreCoeursActive)
+button_open_mask2.grid(row=1, column=2)
 
 # Mettre à jour l'affichage vidéo
 update_video()
