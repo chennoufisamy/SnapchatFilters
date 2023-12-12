@@ -5,20 +5,34 @@ from tkinter import filedialog
 from PIL import Image, ImageTk
 import random
 
+# Charger les detecteur de visage, d'yeux et de corps
 face_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_frontalface_alt.xml')
 eye_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_eye_tree_eyeglasses.xml')
 body_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_upperbody.xml')
 
-#glasses = cv2.imread('images/s.png', cv2.IMREAD_UNCHANGED)
-img_chapeau = cv2.imread('images/chapeau.png', cv2.IMREAD_UNCHANGED)
-img_barbe = cv2.imread('images/barbe.png', cv2.IMREAD_UNCHANGED)
-img_coeur = cv2.imread('images/coeur.png', cv2.IMREAD_UNCHANGED)
 
+# Charger les images et changer le canal bleu et rouge en gardant le canal alpha
+
+img_chapeau = cv2.imread('images/chapeau.png', cv2.IMREAD_UNCHANGED)
+b, g, r, a = cv2.split(img_chapeau)
+img_chapeau = cv2.merge([r, g, b, a])
+
+img_barbe = cv2.imread('images/barbe.png', cv2.IMREAD_UNCHANGED)
+b, g, r, a = cv2.split(img_barbe)
+img_barbe = cv2.merge([r, g, b, a])
+
+img_coeur = cv2.imread('images/coeur.png', cv2.IMREAD_UNCHANGED)
+b, g, r, a = cv2.split(img_coeur)
+img_coeur = cv2.merge([r, g, b, a])
+
+# Initialiser les variables pour les activations/desactivations des filtres et initialiser le frame
 frame = None
 filtreGlassesActiveB = False
 filtreSepiaActiveB = False
 filtreCoeursActiveB = False
 
+
+# Fonction pour activer/desactiver les filtres
 def filtreGlassesActive():
     global filtreGlassesActiveB
     filtreGlassesActiveB = not filtreGlassesActiveB
@@ -31,7 +45,7 @@ def filtreCoeursActive():
     global filtreCoeursActiveB
     filtreCoeursActiveB = not filtreCoeursActiveB
     
-
+# Fonction pour appliquer le filtre pere noel
 def pereNoel(face_cascade,frame,img_chapeau,img_barbe) :
     
     # Convertir l'image en niveaux de gris pour la détection du corps
@@ -94,6 +108,7 @@ def pereNoel(face_cascade,frame,img_chapeau,img_barbe) :
                 # Mettre à jour le cadre
                 frame[hy1_barbe:hy1_barbe+barbe_height, hx1:hx1+barbe_width] = result.astype(np.uint8)
 
+# Fonction pour appliquer le filtre sepia
 def sepia(frame):
     # Conversion en sépia
     sepia_filter = np.array([[0.393, 0.769, 0.189],
@@ -109,6 +124,7 @@ def sepia(frame):
 coeurs = [(0, i * 60) for i in range(10)]
 coeur_y = 0
 
+# Fonction pour appliquer le filtre coeurs
 def fondCoeurs(body_cascade,frame,coeur):
     
     grayMultiple = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -137,25 +153,26 @@ def fondCoeurs(body_cascade,frame,coeur):
         bodyMask[y+h_reduction:y+h-h_reduction, x+w_reduction:x+w-w_reduction] = True  
 
     # Superposer les flocons de neige sur l'image du cadre de la webcam
-    # Vous pouvez personnaliser la logique pour les faire bouger
-    # Ici, nous utilisons une simple translation vers le bas
     for i, (coeur_y, snow_x) in enumerate(coeurs):
-        coeur_y = (coeur_y + random.randint(1, 5)) % height
+        coeur_y = (coeur_y + random.randint(1, 5)) % height # Faire bouger les coeurs
         coeurs[i] = (coeur_y, snow_x)
-        snowflake_rgb = coeur[:, :, :3]
+        coeur_rgb = coeur[:, :, :3]
 
         # Creer un masque où True représente les pixels du coeur qui sont sur le corps
-        snowflake_mask = bodyMask[coeur_y:coeur_y+snowflake_rgb.shape[0], snow_x:snow_x+snowflake_rgb.shape[1]]
+        coeur_mask = bodyMask[coeur_y:coeur_y+coeur_rgb.shape[0], snow_x:snow_x+coeur_rgb.shape[1]]
 
-        # Assure que snowflake_mask et snowflake_rgb ont la même taille
-        snowflake_mask = snowflake_mask[:snowflake_rgb.shape[0], :snowflake_rgb.shape[1]]
+        # Assure que coeur_mask et coeur_rgb ont la même taille
+        if coeur_mask.shape != coeur_rgb.shape:
+            min_height = min(coeur_mask.shape[0], coeur_rgb.shape[0])
+            min_width = min(coeur_mask.shape[1], coeur_rgb.shape[1])
+            coeur_mask = coeur_mask[:min_height, :min_width]
+            coeur_rgb = coeur_rgb[:min_height, :min_width]
 
         # Masque pour éviter de dessiner le coeur sur le corps
-        overlay[coeur_y:coeur_y+snowflake_rgb.shape[0], snow_x:snow_x+snowflake_rgb.shape[1]][~snowflake_mask] = snowflake_rgb[~snowflake_mask]
+        overlay[coeur_y:coeur_y+coeur_rgb.shape[0], snow_x:snow_x+coeur_rgb.shape[1]][~coeur_mask] = coeur_rgb[~coeur_mask]
 
     # Mélanger l'image du cadre avec les coeurs en arrière-plan
     result = cv2.addWeighted(frame, 1, overlay, 1, 0)
-    
     # Mettre à jour le cadre
     frame[0:frame.shape[0],0:frame.shape[1]] = result
     
