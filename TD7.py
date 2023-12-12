@@ -118,23 +118,22 @@ def fondCoeurs(body_cascade,frame,coeur):
     height, width, _ = frame.shape
     coeur = cv2.resize(coeur, (90, 103))
     
-    # Initialize the overlay
+    # Initialiser l'overlay
     overlay = np.zeros_like(frame)
-
-    # Initialize an empty mask
+    
+    # Initialiser un masque vide
     bodyMask = np.zeros_like(grayMultiple, dtype=bool)
 
-    # Fill in the rectangles
     for (x, y, w, h) in bodyDetection:
         
-        # Define the percentage by which you want to reduce the size of the rectangle
+        # DEfinir le pourcentage par lequel vous souhaitez réduire la taille du rectangle
         reduction_percentage = 0.2  # 20% reduction
 
-        # Calculate the amount by which to reduce the dimensions of the rectangle
+        # Calculer la quantité par laquelle réduire les dimensions du rectangle
         w_reduction = int(w * reduction_percentage)
         h_reduction = int(h * reduction_percentage)
 
-        # Adjust the dimensions of the rectangle
+        # Ajuster les dimensions du rectangle
         bodyMask[y+h_reduction:y+h-h_reduction, x+w_reduction:x+w-w_reduction] = True  
 
     # Superposer les flocons de neige sur l'image du cadre de la webcam
@@ -145,16 +144,16 @@ def fondCoeurs(body_cascade,frame,coeur):
         coeurs[i] = (coeur_y, snow_x)
         snowflake_rgb = coeur[:, :, :3]
 
-        # Create a mask where True represents the pixels of the coeur that are on the body
+        # Creer un masque où True représente les pixels du coeur qui sont sur le corps
         snowflake_mask = bodyMask[coeur_y:coeur_y+snowflake_rgb.shape[0], snow_x:snow_x+snowflake_rgb.shape[1]]
 
-        # Ensure that snowflake_mask and snowflake_rgb have the same size
+        # Assure que snowflake_mask et snowflake_rgb ont la même taille
         snowflake_mask = snowflake_mask[:snowflake_rgb.shape[0], :snowflake_rgb.shape[1]]
 
-        # Use the mask to avoid drawing the coeur on the body
+        # Masque pour éviter de dessiner le coeur sur le corps
         overlay[coeur_y:coeur_y+snowflake_rgb.shape[0], snow_x:snow_x+snowflake_rgb.shape[1]][~snowflake_mask] = snowflake_rgb[~snowflake_mask]
 
-    # Mélanger l'image du cadre avec les flocons de neige en arrière-plan
+    # Mélanger l'image du cadre avec les coeurs en arrière-plan
     result = cv2.addWeighted(frame, 1, overlay, 1, 0)
     
     # Mettre à jour le cadre
